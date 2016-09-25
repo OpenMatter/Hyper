@@ -1,4 +1,4 @@
-package io.geeteshk.hyper;
+package io.geeteshk.hyper.activity;
 
 import android.content.DialogInterface;
 import android.os.Build;
@@ -19,7 +19,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import io.geeteshk.hyper.R;
 import io.geeteshk.hyper.adapter.ResourceAdapter;
+import io.geeteshk.hyper.helper.Constants;
+import io.geeteshk.hyper.helper.Decor;
 import io.geeteshk.hyper.helper.Pref;
 
 /**
@@ -51,10 +54,7 @@ public class ResourcesActivity extends AppCompatActivity {
             getSupportActionBar().setTitle(R.string.resources);
         }
 
-        if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().setStatusBarColor(0xFFE64A19);
-        }
-
+        Decor.setStatusBarColor(this, -1);
         prepare();
 
         ExpandableListView listView = (ExpandableListView) findViewById(R.id.resources_list);

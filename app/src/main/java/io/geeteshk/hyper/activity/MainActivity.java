@@ -1,13 +1,13 @@
-package io.geeteshk.hyper;
+package io.geeteshk.hyper.activity;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.AsyncTask;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.TextInputLayout;
 import android.support.v4.app.Fragment;
@@ -20,38 +20,42 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.app.AppCompatDialog;
 import android.support.v7.widget.Toolbar;
 import android.text.InputType;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.storage.FirebaseStorage;
+
 import java.io.File;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.geeteshk.hyper.R;
 import io.geeteshk.hyper.fragment.AssistFragment;
 import io.geeteshk.hyper.fragment.CreateFragment;
 import io.geeteshk.hyper.fragment.HelpFragment;
 import io.geeteshk.hyper.fragment.ImproveFragment;
 import io.geeteshk.hyper.fragment.PilotFragment;
 import io.geeteshk.hyper.fragment.SettingsFragment;
-import io.geeteshk.hyper.helper.GoogleHolder;
+import io.geeteshk.hyper.helper.Constants;
+import io.geeteshk.hyper.helper.Firebase;
 import io.geeteshk.hyper.helper.Pref;
+import io.geeteshk.hyper.helper.Project;
 
 /**
  * Main activity to show all main content
  */
+@SuppressLint("StaticFieldLeak")
 public class MainActivity extends AppCompatActivity {
-
-    private static final String TAG = MainActivity.class.getSimpleName();
 
     private static Context mContext;
     private static FragmentManager mManager;
@@ -73,6 +77,9 @@ public class MainActivity extends AppCompatActivity {
      * Drawer toggle displayed on toolbar
      */
     private ActionBarDrawerToggle mDrawerToggle;
+
+    FirebaseAuth mAuth;
+    FirebaseStorage mStorage;
 
     /**
      * Used to select items in drawer
@@ -134,6 +141,19 @@ public class MainActivity extends AppCompatActivity {
         activity.recreate();
     }
 
+    FirebaseAuth.AuthStateListener authListener = new FirebaseAuth.AuthStateListener() {
+        @Override
+        public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+            FirebaseUser user = firebaseAuth.getCurrentUser();
+            if (user == null) {
+                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(intent);
+                finish();
+            }
+        }
+    };
+
     /**
      * Called when the activity is first created
      *
@@ -141,16 +161,8 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        File projectDir = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyper");
-        boolean fileTest = projectDir.exists();
-        if (!fileTest) {
-            fileTest = projectDir.mkdir();
-        }
-
-        if (!fileTest) {
-            Toast.makeText(this, R.string.project_dir_error, Toast.LENGTH_LONG).show();
-            finish();
-        }
+        mAuth = FirebaseAuth.getInstance();
+        mStorage = FirebaseStorage.getInstance();
 
         if (Pref.get(this, "dark_theme", false)) {
             setTheme(R.style.Hyper_Dark);
@@ -176,21 +188,9 @@ public class MainActivity extends AppCompatActivity {
             items.add(menu.getItem(i));
         }
 
-        View headerView = mDrawer.getHeaderView(0);
-        ImageView mainIcon = (ImageView) headerView.findViewById(R.id.main_icon);
-        TextView mainName = (TextView) headerView.findViewById(R.id.main_name);
-        TextView mainEmail = (TextView) headerView.findViewById(R.id.main_email);
-
-        if (GoogleHolder.getInstance().getAccount() != null) {
-            new DownloadImageTask(mainIcon)
-                    .execute(GoogleHolder.getInstance().getAccount().getPhotoUrl().toString());
-            mainName.setText(GoogleHolder.getInstance().getAccount().getDisplayName());
-            mainEmail.setText(GoogleHolder.getInstance().getAccount().getEmail());
-        }
-
         mDrawer.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
-            public boolean onNavigationItemSelected(MenuItem item) {
+            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 if (!item.isChecked()) {
                     item.setChecked(true);
                 }
@@ -204,6 +204,20 @@ public class MainActivity extends AppCompatActivity {
         mContext = this;
         mManager = getSupportFragmentManager();
         update(this, getSupportFragmentManager(), Pref.get(this, "last_fragment", 0));
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mAuth.addAuthStateListener(authListener);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (authListener != null) {
+            mAuth.removeAuthStateListener(authListener);
+        }
     }
 
     /**
@@ -289,30 +303,5 @@ public class MainActivity extends AppCompatActivity {
         }
 
         super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    private class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
-        ImageView bmImage;
-
-        public DownloadImageTask(ImageView bmImage) {
-            this.bmImage = bmImage;
-        }
-
-        protected Bitmap doInBackground(String... urls) {
-            String urldisplay = urls[0];
-            Bitmap mIcon11 = null;
-            try {
-                InputStream in = new java.net.URL(urldisplay).openStream();
-                mIcon11 = BitmapFactory.decodeStream(in);
-            } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
-                e.printStackTrace();
-            }
-            return mIcon11;
-        }
-
-        protected void onPostExecute(Bitmap result) {
-            bmImage.setImageBitmap(result);
-        }
     }
 }

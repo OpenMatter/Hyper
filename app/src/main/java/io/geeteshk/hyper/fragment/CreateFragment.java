@@ -11,6 +11,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.TextInputLayout;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -22,6 +23,8 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.storage.FirebaseStorage;
 import com.pavelsikun.vintagechroma.ChromaDialog;
 import com.pavelsikun.vintagechroma.ChromaUtil;
 import com.pavelsikun.vintagechroma.IndicatorMode;
@@ -30,8 +33,9 @@ import com.pavelsikun.vintagechroma.colormode.ColorMode;
 
 import java.io.InputStream;
 
-import io.geeteshk.hyper.MainActivity;
+import io.geeteshk.hyper.activity.MainActivity;
 import io.geeteshk.hyper.R;
+import io.geeteshk.hyper.helper.Firebase;
 import io.geeteshk.hyper.helper.Pref;
 import io.geeteshk.hyper.helper.Project;
 import io.geeteshk.hyper.helper.Validator;
@@ -65,6 +69,9 @@ public class CreateFragment extends Fragment {
 
     TextView mColor;
 
+    FirebaseAuth mAuth;
+    FirebaseStorage mStorage;
+
     /**
      * Default empty constructor
      */
@@ -83,6 +90,9 @@ public class CreateFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, final ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_create, container, false);
+
+        mAuth = FirebaseAuth.getInstance();
+        mStorage = FirebaseStorage.getInstance();
 
         mNameLayout = (TextInputLayout) rootView.findViewById(R.id.name_layout);
         mAuthorLayout = (TextInputLayout) rootView.findViewById(R.id.author_layout);
@@ -103,8 +113,8 @@ public class CreateFragment extends Fragment {
         mAuthorLayout.getEditText().setText(Pref.get(getActivity(), "author", ""));
         mDescriptionLayout.getEditText().setText(Pref.get(getActivity(), "description", ""));
         mKeywordsLayout.getEditText().setText(Pref.get(getActivity(), "keywords", ""));
-        mColor.setText(ChromaUtil.getFormattedColorString(Pref.get(getActivity(), "color", Color.BLACK), false));
-        mColor.setTextColor(Pref.get(getActivity(), "color", Color.BLACK));
+        mColor.setText(ChromaUtil.getFormattedColorString(Pref.get(getActivity(), "color", ContextCompat.getColor(getActivity(), R.color.colorAccent)), false));
+        mColor.setTextColor(Pref.get(getActivity(), "color", ContextCompat.getColor(getActivity(), R.color.colorAccent)));
 
         mDefaultIcon.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -158,6 +168,7 @@ public class CreateFragment extends Fragment {
                     Pref.store(getActivity(), "color", mColor.getCurrentTextColor());
 
                     Project.generate(getActivity(), mNameLayout.getEditText().getText().toString(), mAuthorLayout.getEditText().getText().toString(), mDescriptionLayout.getEditText().getText().toString(), mKeywordsLayout.getEditText().getText().toString(), mColor.getText().toString(), mStream);
+                    Firebase.uploadProject(mAuth, mStorage, mNameLayout.getEditText().getText().toString(), false, true);
                     MainActivity.update(getActivity(), getActivity().getSupportFragmentManager(), 1);
                 }
             }

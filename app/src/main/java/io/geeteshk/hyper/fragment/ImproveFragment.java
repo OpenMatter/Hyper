@@ -24,18 +24,22 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.getbase.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.storage.FirebaseStorage;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Locale;
 
-import io.geeteshk.hyper.Constants;
-import io.geeteshk.hyper.MainActivity;
+import io.geeteshk.hyper.helper.Constants;
+import io.geeteshk.hyper.activity.MainActivity;
 import io.geeteshk.hyper.R;
 import io.geeteshk.hyper.adapter.ProjectAdapter;
 import io.geeteshk.hyper.helper.Decor;
+import io.geeteshk.hyper.helper.FirstAid;
 import io.geeteshk.hyper.helper.Giiit;
 import io.geeteshk.hyper.helper.Validator;
 
@@ -44,7 +48,12 @@ public class ImproveFragment extends Fragment {
     ArrayList mObjectsList;
     ProjectAdapter mProjectAdapter;
 
+    FirebaseAuth mAuth;
+    FirebaseStorage mStorage;
+
     public ImproveFragment() {
+        mAuth = FirebaseAuth.getInstance();
+        mStorage = FirebaseStorage.getInstance();
     }
 
     @Nullable
@@ -52,10 +61,16 @@ public class ImproveFragment extends Fragment {
     public View onCreateView(final LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_improve, container, false);
 
-        final String[] objects = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "Hyper").list();
+        final String[] objects = new File(Constants.HYPER_ROOT).list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return dir.isDirectory() && !name.equals(".git") && !FirstAid.isBroken(name);
+            }
+        });
+
         mObjectsList = new ArrayList<>(Arrays.asList(objects));
         Validator.removeBroken(mObjectsList);
-        mProjectAdapter = new ProjectAdapter(getActivity(), (String[]) mObjectsList.toArray(new String[mObjectsList.size()]), true);
+        mProjectAdapter = new ProjectAdapter(getActivity(), (String[]) mObjectsList.toArray(new String[mObjectsList.size()]), true, mAuth, mStorage);
         final RecyclerView projectsList = (RecyclerView) rootView.findViewById(R.id.project_list);
         RecyclerView.LayoutManager layoutManager = new GridLayoutManager(getActivity(), 2);
         projectsList.setLayoutManager(layoutManager);
@@ -132,7 +147,7 @@ public class ImproveFragment extends Fragment {
                     }
                 }
 
-                mProjectAdapter = new ProjectAdapter(getActivity(), (String[]) mObjectsList.toArray(new String[mObjectsList.size()]), true);
+                mProjectAdapter = new ProjectAdapter(getActivity(), (String[]) mObjectsList.toArray(new String[mObjectsList.size()]), true, mAuth, mStorage);
                 projectsList.setAdapter(mProjectAdapter);
             }
         });

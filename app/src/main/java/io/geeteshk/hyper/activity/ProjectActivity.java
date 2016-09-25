@@ -1,4 +1,4 @@
-package io.geeteshk.hyper;
+package io.geeteshk.hyper.activity;
 
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
@@ -12,6 +12,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.BottomSheetDialog;
 import android.support.design.widget.NavigationView;
@@ -28,7 +29,6 @@ import android.support.v7.app.AppCompatDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.text.Html;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -44,6 +44,9 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.storage.FirebaseStorage;
+
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.revwalk.RevCommit;
 
@@ -53,11 +56,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import io.geeteshk.hyper.R;
 import io.geeteshk.hyper.adapter.AboutElementsAdapter;
 import io.geeteshk.hyper.adapter.FileAdapter;
 import io.geeteshk.hyper.adapter.GitLogsAdapter;
 import io.geeteshk.hyper.fragment.EditorFragment;
+import io.geeteshk.hyper.helper.Constants;
 import io.geeteshk.hyper.helper.Decor;
+import io.geeteshk.hyper.helper.Firebase;
 import io.geeteshk.hyper.helper.Giiit;
 import io.geeteshk.hyper.helper.Hyperion;
 import io.geeteshk.hyper.helper.Jason;
@@ -67,6 +73,7 @@ import io.geeteshk.hyper.helper.Project;
 import io.geeteshk.hyper.polymer.CatalogActivity;
 import io.geeteshk.hyper.polymer.Element;
 import io.geeteshk.hyper.polymer.ElementsHolder;
+import io.geeteshk.hyper.text.HtmlCompat;
 import io.geeteshk.hyper.widget.KeyboardDetectorLayout;
 
 /**
@@ -108,6 +115,9 @@ public class ProjectActivity extends AppCompatActivity {
 
     private File mProjectFile;
 
+    FirebaseAuth mAuth;
+    FirebaseStorage mStorage;
+
     /**
      * Called when the activity is created
      *
@@ -121,6 +131,8 @@ public class ProjectActivity extends AppCompatActivity {
             setTheme(R.style.Hyper_Dark);
         }
 
+        mAuth = FirebaseAuth.getInstance();
+        mStorage = FirebaseStorage.getInstance();
         Network.setDrive(new Hyperion(mProject));
         super.onCreate(savedInstanceState);
 
@@ -139,9 +151,7 @@ public class ProjectActivity extends AppCompatActivity {
         hsv[2] *= 0.8f;
         color = Color.HSVToColor(hsv);
 
-        if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().setStatusBarColor(color);
-        }
+        Decor.setStatusBarColor(this, color);
 
         RelativeLayout projectLayout = (RelativeLayout) findViewById(R.id.project_layout_snack);
         if (Pref.get(this, "pin", "").equals("")) {
@@ -191,7 +201,7 @@ public class ProjectActivity extends AppCompatActivity {
 
         mDrawer.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
-            public boolean onNavigationItemSelected(MenuItem item) {
+            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 if (!item.isChecked()) {
                     item.setChecked(true);
                 }
@@ -241,11 +251,12 @@ public class ProjectActivity extends AppCompatActivity {
         mTabStrip.setupWithViewPager(mPager);
         mTabStrip.setBackgroundColor(Color.parseColor(Jason.getProjectProperty(mProject, "color")));
         mTabStrip.setSelectedTabIndicatorColor(getComplementaryColor(Color.parseColor(Jason.getProjectProperty(mProject, "color"))));
+        mTabStrip.setTabMode(TabLayout.MODE_SCROLLABLE);
 
         int newColor = Color.parseColor(Jason.getProjectProperty(mProject, "color"));
 
         if ((Color.red(newColor) * 0.299 + Color.green(newColor) * 0.587 + Color.blue(newColor) * 0.114) > 186) {
-            getSupportActionBar().setTitle((Html.fromHtml("<font color=\"#000000\">" + mProject + "</font>")));
+            getSupportActionBar().setTitle((HtmlCompat.fromHtml("<font color=\"#000000\">" + mProject + "</font>")));
             mTabStrip.setTabTextColors(0x80000000, 0xFF000000);
             PorterDuffColorFilter filter = new PorterDuffColorFilter(0xFF000000, PorterDuff.Mode.MULTIPLY);
             Decor.setOverflowButtonColor(ProjectActivity.this, filter);
@@ -260,7 +271,7 @@ public class ProjectActivity extends AppCompatActivity {
                 }
             });
         } else {
-            getSupportActionBar().setTitle((Html.fromHtml("<font color=\"#FFFFFF\">" + mProject + "</font>")));
+            getSupportActionBar().setTitle((HtmlCompat.fromHtml("<font color=\"#FFFFFF\">" + mProject + "</font>")));
             mTabStrip.setTabTextColors(0x80FFFFFF, 0xFFFFFFFF);
         }
 
@@ -295,6 +306,18 @@ public class ProjectActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        boolean isGitRepo = new File(mProjectFile, ".git").exists() && new File(mProjectFile, ".git").isDirectory();
+        menu.findItem(R.id.action_git_add).setEnabled(isGitRepo);
+        menu.findItem(R.id.action_git_commit).setEnabled(isGitRepo);
+        menu.findItem(R.id.action_git_log).setEnabled(isGitRepo);
+        menu.findItem(R.id.action_git_status).setEnabled(isGitRepo);
+        menu.findItem(R.id.action_git_branch).setEnabled(isGitRepo);
+        menu.findItem(R.id.action_git_clean).setEnabled(isGitRepo);
+        return true;
     }
 
     /**
@@ -345,6 +368,8 @@ public class ProjectActivity extends AppCompatActivity {
         if (Network.getDrive() != null) {
             Network.getDrive().stop();
         }
+
+        Firebase.updateProject(mAuth, mStorage, mProject, false);
     }
 
     /**
@@ -368,7 +393,6 @@ public class ProjectActivity extends AppCompatActivity {
      */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        File projectDir = new File(Constants.HYPER_ROOT + File.separator + mProject + File.separator);
         LayoutInflater inflater = LayoutInflater.from(ProjectActivity.this);
         switch (item.getItemId()) {
             case R.id.action_run:

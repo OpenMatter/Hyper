@@ -1,4 +1,4 @@
-package io.geeteshk.hyper;
+package io.geeteshk.hyper.activity;
 
 import android.content.Intent;
 import android.os.Build;
@@ -11,6 +11,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import io.geeteshk.hyper.R;
+import io.geeteshk.hyper.helper.Decor;
 import io.geeteshk.hyper.helper.Pref;
 
 public class EncryptActivity extends AppCompatActivity {
@@ -28,10 +30,7 @@ public class EncryptActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_encrypt);
-
-        if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().setStatusBarColor(0xFFE64A19);
-        }
+        Decor.setStatusBarColor(this, -1);
 
         dotOne = findViewById(R.id.dotOne);
         dotTwo = findViewById(R.id.dotTwo);
@@ -125,7 +124,7 @@ public class EncryptActivity extends AppCompatActivity {
 
         private int number;
 
-        public NumberClickListener(int number) {
+        NumberClickListener(int number) {
             this.number = number;
         }
 

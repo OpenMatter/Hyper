@@ -1,4 +1,4 @@
-package io.geeteshk.hyper;
+package io.geeteshk.hyper.activity;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -29,6 +29,7 @@ import android.widget.CompoundButton;
 
 import java.util.ArrayList;
 
+import io.geeteshk.hyper.R;
 import io.geeteshk.hyper.adapter.LogsAdapter;
 import io.geeteshk.hyper.helper.Decor;
 import io.geeteshk.hyper.helper.Jason;
@@ -84,10 +85,7 @@ public class WebActivity extends AppCompatActivity {
         hsv[2] *= 0.8f;
         color = Color.HSVToColor(hsv);
 
-        if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().setStatusBarColor(color);
-        }
-
+        Decor.setStatusBarColor(this, color);
         mLogs = new ArrayList<>();
 
         mWebView = (WebView) findViewById(R.id.web_view);
